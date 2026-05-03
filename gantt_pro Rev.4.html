@@ -1,0 +1,365 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Gantt Pro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- NAVBAR -->
+<div class="navbar no-print">
+  <div class="brand">
+    <div class="brand-logo"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="12" height="3" rx="1.5"/><rect x="2" y="10" width="20" height="3" rx="1.5"/><rect x="2" y="16" width="8" height="3" rx="1.5"/></svg></div>
+    <span class="brand-name">Gantt Pro</span>
+  </div>
+  <div class="nav-actions">
+    <span class="saved-msg" id="savedMsg">✓ Salvo</span>
+    <span class="autosave-indicator" id="autosaveIndicator">
+      <span class="autosave-dot" id="autosaveDot"></span>
+      <span id="autosaveLabel">Auto-salvo</span>
+    </span>
+    <button class="btn-nav" onclick="window.print()">⎙ Imprimir</button>
+    <button class="btn-nav" onclick="openExportModal()">↓ Excel</button>
+    <button class="btn-nav" onclick="document.getElementById('importFile').click()">↑ Importar</button>
+    <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)"/>
+    <button class="btn-nav green" onclick="saveAsFile()">💾 Salvar arquivo</button>
+    <button class="btn-nav danger" onclick="resetAll()">Resetar</button>
+    <button class="btn-nav" id="darkModeBtn" onclick="toggleDark()">🌙</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header no-print">
+  <div class="header-top">
+    <div>
+      <div class="project-label">Projeto</div>
+      <div class="project-title" id="ganttTitle" contenteditable="true" oninput="saveState()">SBR4 — Cronograma de Acompanhamento</div>
+      <div class="project-sub" id="ganttSub" contenteditable="true" oninput="saveState()">Ship Manager · CRONOGRAMA AUXILIAR SBR4</div>
+    </div>
+    <div class="kpi-row" id="kpiRow"></div>
+  </div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar no-print">
+  <button class="btn-accent" onclick="addTask()">+ Tarefa</button>
+  <button class="tbar-btn" onclick="addMilestone()" title="Adicionar marco">◆ Marco</button>
+  <div class="tbar-sep"></div>
+  <select class="tbar-select" id="viewMode" onchange="render()">
+    <option value="day">Dias</option>
+    <option value="week">Semanas</option>
+    <option value="month" selected>Meses</option>
+    <option value="quarter">Trimestres</option>
+  </select>
+  <select class="tbar-select" id="yearSel" onchange="scrollToYear(this.value)"></select>
+  <button class="tbar-btn" onclick="goToday()">📅 Hoje</button>
+  <div class="tbar-sep"></div>
+  <span class="tbar-label">Data Date</span>
+  <input type="date" class="tbar-input" id="dataDateInput" onchange="onDataDateChange()"/>
+  <button class="tbar-btn" onclick="resetDataDate()" title="Usar data atual">↺</button>
+  <div class="tbar-sep"></div>
+  <span class="tbar-label">Baseline</span>
+  <div class="baseline-btns">
+    <button class="bl-btn" data-slot="1" onclick="toggleBaseline(1)">B1</button>
+    <button class="bl-btn" data-slot="2" onclick="toggleBaseline(2)">B2</button>
+    <button class="bl-btn" data-slot="3" onclick="toggleBaseline(3)">B3</button>
+    <button class="tbar-btn" onclick="openBaselineModal()" title="Gerenciar baselines">⚙</button>
+  </div>
+  <div class="tbar-sep"></div>
+  <button class="tbar-btn critical-btn" id="cpBtn" onclick="toggleCP()" title="Caminho Crítico">🔴 Caminho Crítico</button>
+  <span class="tbar-label">Float ≤</span>
+  <input type="number" class="threshold-input" id="cpThreshold" value="0" min="-99" max="99" onchange="render()" title="Threshold de criticidade (dias)"/>
+  <span style="font-size:11px;color:var(--text3)">dias</span>
+  <div class="tbar-sep"></div>
+  <button class="tbar-btn connect-btn" id="connectBtn" onclick="toggleConnectMode()" title="Modo conexão (dependências)">🔗 Conectar</button>
+  <button class="tbar-btn" id="arrowsBtn" onclick="toggleArrows()" title="Ocultar/exibir setas de relacionamento">↗ Setas</button>
+  <div class="tbar-sep"></div>
+  <span class="saved-msg" id="savedMsg2"></span>
+</div>
+
+<!-- PANEL TABS -->
+<div class="panel-tabs no-print">
+  <button class="ptab active" id="ptabFilter" onclick="switchPanel('filter')">⚙ Filtros</button>
+  <button class="ptab" id="ptabCols" onclick="switchPanel('cols')">☰ Colunas</button>
+  <button class="ptab" id="ptabDash" onclick="switchPanel('dash')">📊 Dashboard</button>
+  <button class="ptab" id="ptabLook" onclick="switchPanel('look')">🔭 Lookahead</button>
+  <button class="ptab" id="ptabAlerts" onclick="switchPanel('alerts')">🔔 Alertas <span id="alertCount"></span></button>
+</div>
+
+<!-- FILTER PANEL -->
+<div class="panel-body open no-print" id="panelFilter">
+  <div class="filter-grid">
+    <div class="filter-field"><span class="filter-label">Tarefa</span><input class="filter-input" id="fName" placeholder="Buscar por nome…" oninput="applyFilters()"/></div>
+    <div class="filter-field"><span class="filter-label">Responsável</span><input class="filter-input" id="fOwner" placeholder="Buscar responsável…" oninput="applyFilters()"/></div>
+    <div class="filter-field"><span class="filter-label">Status</span>
+      <select class="filter-select" id="fStatus" onchange="applyFilters()">
+        <option value="">Todos os status</option>
+        <option value="track">No prazo</option><option value="risk">Em risco</option>
+        <option value="delay">Atrasado</option><option value="done">Concluído</option>
+      </select>
+    </div>
+    <div class="filter-field"><span class="filter-label">Conclusão (%)</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <input class="filter-input" id="fPctMin" type="number" min="0" max="100" value="0" style="width:60px" oninput="applyFilters()"/>
+        <span style="color:var(--text3)">—</span>
+        <input class="filter-input" id="fPctMax" type="number" min="0" max="100" value="100" style="width:60px" oninput="applyFilters()"/>
+        <span style="font-size:11px;color:var(--text3)">%</span>
+      </div>
+    </div>
+    <div class="filter-field"><span class="filter-label">Início após</span><input class="filter-input" id="fDateStart" type="date" onchange="applyFilters()"/></div>
+    <div class="filter-field"><span class="filter-label">Término antes de</span><input class="filter-input" id="fDateEnd" type="date" onchange="applyFilters()"/></div>
+    <div class="filter-field" style="justify-content:flex-end">
+      <button class="btn-ghost" onclick="clearFilters()">✕ Limpar filtros</button>
+    </div>
+  </div>
+</div>
+
+<!-- COLUMNS PANEL -->
+<div class="panel-body no-print" id="panelCols">
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+    <div class="col-section">
+      <div class="col-section-title">Colunas visíveis</div>
+      <div class="col-toggles" id="colToggles"></div>
+    </div>
+    <div class="col-section">
+      <div class="col-section-title">Legenda</div>
+      <label class="col-toggle active" id="legendToggle">
+        <input type="checkbox" id="legendChk" checked onchange="colVis.legend=this.checked;renderFooter();saveState();this.closest('label').className='col-toggle'+(this.checked?' active':' off')"/>
+        <span>Exibir legenda</span>
+      </label>
+    </div>
+    <div class="col-section">
+      <div class="col-section-title">Adicionar coluna</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="newColLabel" type="text" placeholder="Nome da coluna" style="border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12px;background:var(--surface);color:var(--text1);width:150px"/>
+        <button class="btn-accent" style="padding:5px 10px;font-size:12px" onclick="addCustomCol()">+ Add</button>
+      </div>
+      <div id="customColList" style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap"></div>
+    </div>
+  </div>
+  <div class="col-section" style="margin-top:14px">
+    <div class="col-section-title">Largura das colunas</div>
+    <div class="cw-grid" id="cwGrid"></div>
+    <button class="btn-ghost" style="margin-top:8px;font-size:11px" onclick="resetWidths()">↺ Restaurar larguras padrão</button>
+  </div>
+</div>
+
+<!-- DASHBOARD PANEL -->
+<div class="panel-body no-print" id="panelDash" style="padding:16px 20px">
+  <div class="dashboard-grid">
+    <div class="dash-card" id="dashHealth"></div>
+    <div class="dash-card">
+      <div class="dash-card-title">Curva S — Avanço Acumulado</div>
+      <div class="scurve-container"><canvas id="scurveChart"></canvas></div>
+    </div>
+    <div class="dash-card" id="dashCritical"></div>
+    <div class="dash-card" id="dashMilestones"></div>
+  </div>
+</div>
+
+<!-- LOOKAHEAD PANEL -->
+<div class="panel-body no-print" id="panelLook">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+    <span class="tbar-label">Próximas</span>
+    <select class="tbar-select" id="lookaheadWeeks" onchange="renderLookahead()">
+      <option value="1">1 semana</option><option value="2" selected>2 semanas</option>
+      <option value="4">4 semanas</option><option value="8">8 semanas</option>
+    </select>
+  </div>
+  <div id="lookaheadList"></div>
+</div>
+
+<!-- ALERTS PANEL -->
+<div class="panel-body no-print" id="panelAlerts">
+  <div id="alertsList"></div>
+</div>
+
+<!-- GANTT -->
+<div style="display:flex;flex-direction:column;flex:1 1 0;min-height:0">
+  <div class="gantt-outer" id="ganttOuter">
+    <div class="gantt-wrapper" id="ganttWrapper">
+      <table id="ganttTable"></table>
+      <svg class="dep-svg" id="depSvg">
+        <defs>
+          <marker id="arrowGray" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#64748b"/>
+          </marker>
+          <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#dc2626"/>
+          </marker>
+          <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#2563eb"/>
+          </marker>
+        </defs>
+        <g id="depPaths"></g>
+        <g id="depTemp"></g>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER LEGEND -->
+<div class="footer no-print" id="footerLegend"></div>
+
+<!-- TOOLTIP -->
+<div class="gantt-tooltip" id="ganttTooltip"></div>
+
+<!-- TASK EDIT MODAL -->
+<div class="overlay" id="taskModal">
+  <div class="modal wide">
+    <div class="mhead"><h3 id="modalTitle">Editar Tarefa</h3><button onclick="closeModal('taskModal')">×</button></div>
+    <div class="mbody">
+      <div class="field"><label>Nome da tarefa</label><input id="mName" type="text"/></div>
+      <div class="frow">
+        <div class="field"><label>Responsável</label><input id="mOwner" type="text"/></div>
+        <div class="field"><label>Tipo</label>
+          <select id="mType">
+            <option value="task">Tarefa</option>
+            <option value="milestone">Marco (Milestone)</option>
+            <option value="summary">Sumário (WBS)</option>
+          </select>
+        </div>
+      </div>
+      <div class="frow" id="mDatesRow">
+        <div class="field"><label>Início</label><input id="mStart" type="date"/></div>
+        <div class="field"><label>Término</label><input id="mEnd" type="date"/></div>
+      </div>
+      <div class="frow">
+        <div class="field"><label>Conclusão (%)</label><input id="mPct" type="number" min="0" max="100"/></div>
+        <div class="field"><label>Cor</label><div class="swatches" id="swatches"></div></div>
+      </div>
+      <div class="frow">
+        <div class="field"><label>Nível WBS</label><input id="mWbsCode" type="text" placeholder="Ex: 1.2.3"/></div>
+        <div class="field"><label>Tarefa pai</label>
+          <select id="mParent"><option value="">— Sem pai —</option></select>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="field"><label>Restrição</label>
+          <select id="mConstraint" onchange="toggleConstraintDate()">
+            <option value="ASAP">ASAP — As Soon As Possible</option>
+            <option value="ALAP">ALAP — As Late As Possible</option>
+            <option value="MSO">MSO — Must Start On</option>
+            <option value="MFO">MFO — Must Finish On</option>
+            <option value="SNET">SNET — Start No Earlier Than</option>
+            <option value="SNLT">SNLT — Start No Later Than</option>
+            <option value="FNET">FNET — Finish No Earlier Than</option>
+            <option value="FNLT">FNLT — Finish No Later Than</option>
+          </select>
+        </div>
+        <div class="field" id="constraintDateField" style="display:none"><label>Data de restrição</label><input id="mConstraintDate" type="date"/></div>
+      </div>
+      <div class="field">
+        <label>Notas</label>
+        <textarea id="mNotes" placeholder="Observações sobre a tarefa…"></textarea>
+      </div>
+      <div class="field" id="mDepsField">
+        <label>Dependências (predecessores)</label>
+        <div class="dep-list" id="modalDepList"></div>
+        <div style="margin-top:6px;font-size:11px;color:var(--text3)">Use o modo 🔗 Conectar no Gantt para adicionar dependências visualmente.</div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn-danger-sm" onclick="removeTask(modalTaskId)">🗑 Remover</button>
+      <button class="btn-cancel" onclick="closeModal('taskModal')">Cancelar</button>
+      <button class="btn-save" onclick="saveModal()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- BASELINE MODAL -->
+<div class="overlay" id="baselineModal">
+  <div class="modal">
+    <div class="mhead"><h3>Gerenciar Baselines</h3><button onclick="closeModal('baselineModal')">×</button></div>
+    <div class="mbody" id="baselineModalBody"></div>
+    <div class="mfoot"><button class="btn-cancel" onclick="closeModal('baselineModal')">Fechar</button></div>
+  </div>
+</div>
+
+<!-- DEP EDIT POPOVER -->
+<div class="dep-popover" id="depPopover">
+  <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">Dependência</div>
+  <div class="field" style="margin-bottom:8px">
+    <label>Tipo</label>
+    <select id="depType" style="border:1px solid var(--line);border-radius:5px;padding:4px 6px;font-size:12px;background:var(--surface);color:var(--text1)" onchange="updateDep()">
+      <option value="FS">FS — Finish to Start</option>
+      <option value="SS">SS — Start to Start</option>
+      <option value="FF">FF — Finish to Finish</option>
+      <option value="SF">SF — Start to Finish</option>
+    </select>
+  </div>
+  <div class="field" style="margin-bottom:8px">
+    <label>Lag (dias)</label>
+    <input type="number" id="depLag" style="border:1px solid var(--line);border-radius:5px;padding:4px 6px;font-size:12px;background:var(--surface);color:var(--text1);width:80px" onchange="updateDep()"/>
+  </div>
+  <div style="display:flex;justify-content:space-between">
+    <button class="btn-danger-sm" style="font-size:11px;padding:4px 10px" onclick="deleteDep()">🗑 Remover</button>
+    <button class="btn-cancel" style="font-size:11px;padding:4px 10px" onclick="closeDepPopover()">Fechar</button>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="overlay" id="importModal">
+  <div class="modal">
+    <div class="mhead"><h3>Importar Excel</h3><button onclick="closeModal('importModal')">×</button></div>
+    <div class="mbody">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:4px">Arquivo detectado com <strong id="importCount">0</strong> tarefa(s).</p>
+      <p id="importFormat" style="font-size:11px;color:var(--teal);font-weight:600;margin-bottom:12px"></p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px;border:1px solid var(--line);border-radius:7px">
+          <input type="radio" name="importMode" value="replace" checked/>
+          <div><div style="font-weight:600;font-size:13px">Substituir tudo</div><div style="font-size:11px;color:var(--text3)">Remove todas as tarefas atuais e importa o arquivo</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px;border:1px solid var(--line);border-radius:7px">
+          <input type="radio" name="importMode" value="merge"/>
+          <div><div style="font-weight:600;font-size:13px">Mesclar</div><div style="font-size:11px;color:var(--text3)">Adiciona as tarefas do arquivo às existentes</div></div>
+        </label>
+      </div>
+      <div id="importWarnings" style="margin-top:12px;font-size:11px;color:var(--amber)"></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn-cancel" onclick="closeModal('importModal')">Cancelar</button>
+      <button class="btn-save" onclick="confirmImport()">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="overlay" id="exportModal">
+  <div class="modal">
+    <div class="mhead"><h3>Exportar Excel</h3><button onclick="closeModal('exportModal')">×</button></div>
+    <div class="mbody">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Selecione as colunas a incluir na exportação:</p>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px">
+        <button class="btn-ghost" style="font-size:11px;padding:3px 10px" onclick="setAllExportCols(true)">Selecionar todas</button>
+        <button class="btn-ghost" style="font-size:11px;padding:3px 10px" onclick="setAllExportCols(false)">Desmarcar todas</button>
+      </div>
+      <div id="exportColList" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px">BASELINES</div>
+        <div id="exportBaselineList" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn-cancel" onclick="closeModal('exportModal')">Cancelar</button>
+      <button class="btn-save" onclick="exportExcel()">↓ Exportar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPLATE BANNER -->
+<div id="templateBanner" class="template-banner">
+  <button class="tb-close" onclick="document.getElementById('templateBanner').style.display='none'">×</button>
+  <span>⚠️ <strong>Modelo inicial.</strong> Configure suas tarefas e clique em <strong>💾 Salvar arquivo</strong> para não perder alterações.</span>
+  <button class="tb-btn" onclick="saveAsFile()">💾 Salvar arquivo agora</button>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
