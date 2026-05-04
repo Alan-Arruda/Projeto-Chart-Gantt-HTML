@@ -82,6 +82,16 @@ input,select{font-family:var(--font)}
 .ptab.active{color:var(--accent);border-bottom-color:var(--accent)}
 .panel-body{background:var(--bg);border-bottom:1px solid var(--line);padding:14px 20px;display:none}
 .panel-body.open{display:block}
+#panelLook .panel-body,#lookaheadList{max-height:660px;overflow-y:auto;padding-right:4px}
+#lookaheadList::-webkit-scrollbar{width:6px}
+#lookaheadList::-webkit-scrollbar-track{background:var(--bg);border-radius:3px}
+#lookaheadList::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+#lookaheadList::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+#alertsList{max-height:660px;overflow-y:auto;padding-right:4px}
+#alertsList::-webkit-scrollbar{width:6px}
+#alertsList::-webkit-scrollbar-track{background:var(--bg);border-radius:3px}
+#alertsList::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+#alertsList::-webkit-scrollbar-thumb:hover{background:#94a3b8}
 
 /* FILTER PANEL */
 .filter-grid{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
@@ -127,6 +137,36 @@ input,select{font-family:var(--font)}
 #ganttTable tr.alt td{background:var(--bg)}
 .dark-mode #ganttTable tr.alt td{background:#172033}
 #ganttTable tr[data-hidden="true"]{display:none}
+/* STICKY COLUMNS */
+#ganttTable th.c-task,#ganttTable td.c-task,
+#ganttTable th.c-owner,#ganttTable td.c-owner,
+#ganttTable th.c-status,#ganttTable td.c-status,
+#ganttTable th.c-pct,#ganttTable td.c-pct,
+#ganttTable th.c-dates,#ganttTable td.c-dates{position:sticky;z-index:5}
+#ganttTable th.c-task,#ganttTable th.c-owner,
+#ganttTable th.c-status,#ganttTable th.c-pct,
+#ganttTable th.c-dates{z-index:11;background:var(--surface)}
+#ganttTable td.c-task,#ganttTable td.c-owner,
+#ganttTable td.c-status,#ganttTable td.c-pct,
+#ganttTable td.c-dates{background:var(--surface)}
+#ganttTable tr.alt td.c-task,#ganttTable tr.alt td.c-owner,
+#ganttTable tr.alt td.c-status,#ganttTable tr.alt td.c-pct,
+#ganttTable tr.alt td.c-dates{background:var(--bg)}
+#ganttTable tr:hover td.c-task,#ganttTable tr:hover td.c-owner,
+#ganttTable tr:hover td.c-status,#ganttTable tr:hover td.c-pct,
+#ganttTable tr:hover td.c-dates{background:#f8fafc}
+#ganttTable thead tr:first-child th{top:0;z-index:12}
+#ganttTable thead tr:nth-child(2) th{top:28px;z-index:11}
+#ganttTable thead tr:first-child th.c-task,
+#ganttTable thead tr:first-child th.c-owner,
+#ganttTable thead tr:first-child th.c-status,
+#ganttTable thead tr:first-child th.c-pct,
+#ganttTable thead tr:first-child th.c-dates{z-index:15}
+#ganttTable thead tr:nth-child(2) th.c-task,
+#ganttTable thead tr:nth-child(2) th.c-owner,
+#ganttTable thead tr:nth-child(2) th.c-status,
+#ganttTable thead tr:nth-child(2) th.c-pct,
+#ganttTable thead tr:nth-child(2) th.c-dates{z-index:14}
 
 /* TASK COLUMN */
 .c-task{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
