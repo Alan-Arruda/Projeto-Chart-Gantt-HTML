@@ -508,6 +508,24 @@ function scrollToYear(y){
   });
 }
 
+function fixStickyColumns(){
+  const cols=['c-task','c-owner','c-status','c-pct','c-dates'];
+  let left=0;
+  cols.forEach(cls=>{
+    const th=document.querySelector(`#ganttTable th.${cls}`);
+    if(!th||th.classList.contains('col-hidden'))return;
+    document.querySelectorAll(`#ganttTable th.${cls},#ganttTable td.${cls}`)
+      .forEach(el=>el.style.left=left+'px');
+    left+=th.offsetWidth;
+  });
+  const lastCls=[...cols].reverse().find(cls=>{
+    const el=document.querySelector(`#ganttTable th.${cls}`);
+    return el&&!el.classList.contains('col-hidden');
+  });
+  if(lastCls)document.querySelectorAll(`#ganttTable th.${lastCls},#ganttTable td.${lastCls}`)
+    .forEach(el=>el.style.boxShadow='3px 0 6px rgba(0,0,0,.08)');
+}
+
 function render(){
   renderYearSel();renderKPIs();applyColWidths();
   const periods=getPeriods(),tot=periods.reduce((a,p)=>a+p.cols,0);
@@ -665,7 +683,7 @@ function render(){
   });
 
   applyColVis();
-  setTimeout(()=>{updateArrows();setupDrag();setupConnectHandles();},50);
+  setTimeout(()=>{updateArrows();setupDrag();setupConnectHandles();fixStickyColumns();},50);
   renderFooter();buildColPanel();updateAlertCount();
   if(currentPanel==='dash')renderDashboard();
   if(currentPanel==='look')renderLookahead();
@@ -921,9 +939,6 @@ function renderFooter(){
   if(colVis.legend===false){el.style.display='none';return;}
   el.style.display='flex';
   let h='';
-  tasks.filter(t=>!t.isSummary).slice(0,8).forEach(t=>h+=`<div class="li"><span class="ldot" style="background:${t.color}"></span>${esc(t.name)}</div>`);
-  if(tasks.length>8)h+=`<div class="li" style="color:var(--text3)">+${tasks.length-8} mais</div>`;
-  h+='<div class="lsep"></div>';
   Object.values(SM).forEach(v=>h+=`<div class="li"><span class="sbadge ${v.cls}" style="font-size:9px;padding:2px 6px;cursor:default">${v.label}</span></div>`);
   h+='<div class="lsep"></div><div class="li"><span class="ldot" style="background:#dc2626"></span>Data Date</div>';
   el.innerHTML=h;
