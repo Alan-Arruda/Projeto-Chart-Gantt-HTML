@@ -1,4 +1,3 @@
-/*__SAVED_STATE__*//*__SAVED_STATE_END__*/
 :root{
   --bg:#f0f2f5;--surface:#fff;--nav:#0f172a;--nav2:#1e293b;
   --accent:#2563eb;--accent2:#1d4ed8;--critical:#dc2626;--milestone:#7c3aed;
@@ -321,6 +320,10 @@ input,select{font-family:var(--font)}
   .gantt-outer{overflow:visible}
   body{background:#fff}
 }
+
+/* ROW DRAG */
+#ganttTable tbody tr[draggable]{cursor:grab}
+#ganttTable tbody tr.drag-over td{border-top:2px solid var(--accent)!important;background:#eff6ff!important}
 
 /* SCROLLBAR — global */
 ::-webkit-scrollbar{width:6px;height:6px}
