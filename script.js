@@ -1,3 +1,4 @@
+/*__SAVED_STATE__*//*__SAVED_STATE_END__*/
 
 // Capture original source BEFORE any render() modifies the DOM
 // Works with file://, http:// and https://
@@ -165,7 +166,7 @@ function saveAsFile(){
       document.body.appendChild(a);a.click();
       document.body.removeChild(a);URL.revokeObjectURL(a.href);
 
-      showToast&&showToast('Arquivo salvo!');
+      const el=document.getElementById('savedMsg');if(el){el.style.opacity='1';clearTimeout(el._t);el._t=setTimeout(()=>el.style.opacity='0',2200);}
     }catch(e){alert('Erro ao salvar: '+e.message);}
 
     if(btn){btn.textContent=origText;btn.disabled=false;}
@@ -683,7 +684,7 @@ function render(){
   });
 
   applyColVis();
-  setTimeout(()=>{updateArrows();setupDrag();setupConnectHandles();fixStickyColumns();},50);
+  setTimeout(()=>{updateArrows();setupDrag();setupConnectHandles();fixStickyColumns();setupRowDrag();},50);
   renderFooter();buildColPanel();updateAlertCount();
   if(currentPanel==='dash')renderDashboard();
   if(currentPanel==='look')renderLookahead();
@@ -1027,6 +1028,7 @@ function addTask(){
   tasks.push({id:nextId++,wbsCode:'',name:'Nova Tarefa',owner:'—',color:COLORS[nextId%COLORS.length],
     start:`${y}-01-01`,end:`${y}-03-31`,pct:0,isMilestone:false,isSummary:false,parentId:null,
     collapsed:false,constraintType:'ASAP',constraintDate:null,notes:''});
+  tasks.sort((a,b)=>a.start<b.start?-1:a.start>b.start?1:0);
   render();saveState();
 }
 function addMilestone(){
@@ -1637,6 +1639,65 @@ function toggleDark(){
   document.body.classList.toggle('dark-mode');
   document.getElementById('darkModeBtn').textContent=document.body.classList.contains('dark-mode')?'☀️':'🌙';
 }
+// ============================================================
+// ROW DRAG — reorder tasks by dragging rows
+// ============================================================
+function setupRowDrag(){
+  const tbody=document.querySelector('#ganttTable tbody');
+  if(!tbody)return;
+  let dragSrcId=null;
+  let dragOverId=null;
+  let placeholder=null;
+
+  tbody.querySelectorAll('tr').forEach(row=>{
+    const id=+row.dataset.id;
+    if(!id)return;
+    // drag handle — the wbs-indent area acts as handle
+    row.setAttribute('draggable','true');
+
+    row.addEventListener('dragstart',function(e){
+      dragSrcId=+this.dataset.id;
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',dragSrcId);
+      setTimeout(()=>this.style.opacity='0.4',0);
+    });
+
+    row.addEventListener('dragend',function(){
+      this.style.opacity='';
+      tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drag-over'));
+      if(dragSrcId!==null&&dragOverId!==null&&dragSrcId!==dragOverId){
+        // Find positions in the tasks array
+        const fromIdx=tasks.findIndex(t=>t.id===dragSrcId);
+        const toIdx=tasks.findIndex(t=>t.id===dragOverId);
+        if(fromIdx!==-1&&toIdx!==-1){
+          const moved=tasks.splice(fromIdx,1)[0];
+          const newTo=tasks.findIndex(t=>t.id===dragOverId);
+          tasks.splice(newTo,0,moved);
+          render();saveState();
+        }
+      }
+      dragSrcId=null;dragOverId=null;
+    });
+
+    row.addEventListener('dragover',function(e){
+      e.preventDefault();
+      e.dataTransfer.dropEffect='move';
+      tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drag-over'));
+      this.classList.add('drag-over');
+      dragOverId=+this.dataset.id;
+    });
+
+    row.addEventListener('dragleave',function(){
+      this.classList.remove('drag-over');
+    });
+
+    row.addEventListener('drop',function(e){
+      e.preventDefault();
+      this.classList.remove('drag-over');
+    });
+  });
+}
+
 // Middle mouse button pan on gantt
 (function(){
   const outer=document.getElementById('ganttOuter');
